@@ -1,5 +1,5 @@
 /**
-  ******************************************************************************
+ ******************************************************************************
   * @file    srvr.h
   * @author  Waveshare Team
   * @version V1.0.0
@@ -15,6 +15,7 @@
 /* Includes ------------------------------------------------------------------*/
 //#include <ESP8266WiFi.h>// ESP8266 and WiFi classes
 #include <WiFi.h>
+#include <WiFiManager.h>
 
 #include "buff.h" // POST request data accumulator
 #include "epd.h"  // e-Paper driver
@@ -23,17 +24,8 @@
 #include "css.h"     // Cascading Style Sheets
 #include "html.h"    // HTML page of the tool
 
-/* SSID and password of your WiFi net ----------------------------------------*/
-const char *ssid = "JSBPI"; //"your ssid";
-const char *password = "waveshare0755";   //"your password";
-
-/* Static IP address Settings ------------------------------------------------*/
-IPAddress staticIP(192, 168, 1, 159);
-IPAddress gateway(192, 168, 1, 1);
-IPAddress subnet(255, 255, 255, 0);
-IPAddress dns(223, 5, 5, 5);
-
 /* Server and IP address ------------------------------------------------------*/
+WiFiManager wifiManager;
 WiFiServer server(80); // Wifi server exemplar using port 80
 IPAddress myIP;        // IP address in your local wifi net
 
@@ -41,24 +33,12 @@ IPAddress myIP;        // IP address in your local wifi net
 bool isIndexPage = true; // true : GET  request, client needs 'index' page;
 // false: POST request, server sends empty page.
 /* Server initialization -------------------------------------------------------*/
-void Srvr__setup()
-{
-    Serial.println();
-    Serial.println();
-    Serial.print("Connecting to ");
-    Serial.println(ssid);
-
-	if (WiFi.config(staticIP, gateway, subnet, dns, dns) == false) {
-		Serial.println("Configuration failed.");
-	}
-
-    // Applying SSID and password
-    WiFi.begin(ssid, password);
-
-    // Waiting the connection to a router
-    while (WiFi.status() != WL_CONNECTED) {
-        delay(500);
-        Serial.print(".");
+void Srvr__setup() {
+    bool res;
+    res = wifiManager.autoConnect("Waveshare");
+        if(!res) {
+        Serial.println("Failed to connect");
+        ESP.restart();
     }
 
     // Connection is complete
@@ -75,8 +55,7 @@ void Srvr__setup()
 }
 
 /* Sending a script to the client's browser ------------------------------------*/
-bool Srvr__file(WiFiClient client, int fileIndex, char *fileName)
-{
+bool Srvr__file(WiFiClient client, int fileIndex, char *fileName) {
     // Print log message: sending of script file
     Serial.print(fileName);
 
@@ -116,30 +95,29 @@ bool Srvr__file(WiFiClient client, int fileIndex, char *fileName)
 }
 
 /* The server state observation loop -------------------------------------------*/
-bool Srvr__loop()
-{
+bool Srvr__loop() {
     // Looking for a client trying to connect to the server
     WiFiClient client = server.available();
     int16_t label = 0;
     int16_t fale = 1000;
 
     // Exit if there is no any clients
-    if (!client)
+    if (!client) {
         return false;
+    }
 
     // Print log message: the start of request processing
     Serial.print("<<<");
 
     // Waiting the client is ready to send data
-    while (!client.available())
-    {
-        delay(1); 
+    while (!client.available()) {
+        delay(1);
         label++;
-        if(label > fale)
-        {
+        if (label > fale) {
             label = fale + 1;
-            if(!server.available())
+            if (!server.available()) {
                 return false;
+            }
         }
     }
 
@@ -164,20 +142,25 @@ bool Srvr__loop()
 
         // Requests of files
         if (Buff__bufInd >= 11) {
-            if (Buff__signature(Buff__bufInd - 11, "/styles.css"))
+            if (Buff__signature(Buff__bufInd - 11, "/styles.css")) {
                 return Srvr__file(client, 0, "styles.css");
+            }
 
-            if (Buff__signature(Buff__bufInd - 11, "/scriptA.js"))
+            if (Buff__signature(Buff__bufInd - 11, "/scriptA.js")) {
                 return Srvr__file(client, 1, "scriptA.js");
+            }
 
-            if (Buff__signature(Buff__bufInd - 11, "/scriptB.js"))
+            if (Buff__signature(Buff__bufInd - 11, "/scriptB.js")) {
                 return Srvr__file(client, 2, "scriptB.js");
+            }
 
-            if (Buff__signature(Buff__bufInd - 11, "/scriptC.js"))
+            if (Buff__signature(Buff__bufInd - 11, "/scriptC.js")) {
                 return Srvr__file(client, 3, "scriptC.js");
+            }
 
-            if (Buff__signature(Buff__bufInd - 11, "/scriptD.js"))
+            if (Buff__signature(Buff__bufInd - 11, "/scriptD.js")) {
                 return Srvr__file(client, 4, "scriptD.js");
+            }
         }
 
         // If the buffer's length is larger, than 4 (length of command's name), then...
@@ -190,8 +173,9 @@ bool Srvr__loop()
                 Serial.print("\r\nEPD\r\n");
                 // Getting of e-Paper's type
                 EPD_dispIndex = (int)Buff__bufArr[Buff__bufInd - 1] - (int)'a';
-                if(EPD_dispIndex < 0)
-                  EPD_dispIndex = (int)Buff__bufArr[Buff__bufInd - 1] - (int)'A' + 26;
+                if (EPD_dispIndex < 0) {
+                    EPD_dispIndex = (int)Buff__bufArr[Buff__bufInd - 1] - (int)'A' + 26;
+                }
                 // Print log message: initialization of e-Paper (e-Paper's type)
                 Serial.printf("EPD %s", EPD_dispMass[EPD_dispIndex].title);
 
@@ -208,8 +192,9 @@ bool Srvr__loop()
 
                 // Load data into the e-Paper
                 // if there is loading function for current channel (black or red)
-                if (EPD_dispLoad != 0)
+                if (EPD_dispLoad != 0) {
                     EPD_dispLoad();
+                }
                 //client.print("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n");
                 break;
             }
@@ -222,12 +207,12 @@ bool Srvr__loop()
                 // Instruction code for for writting data into
                 // e-Paper's memory
                 int code = EPD_dispMass[EPD_dispIndex].next;
-                if(EPD_dispIndex == 34)
-                {
-                    if(flag == 0)
+                if (EPD_dispIndex == 34) {
+                    if (flag == 0) {
                         code = 0x26;
-                    else
+                    } else {
                         code = 0x13;
+                    }
                 }
 
                 // If the instruction code isn't '-1', then...
@@ -272,10 +257,11 @@ bool Srvr__loop()
     client.print("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n");
 
     // Send the 'index' page if it's needed
-    if (isIndexPage)
+    if (isIndexPage) {
         sendHtml(client, myIP);
-    else
+    } else {
         client.print("Ok!");
+    }
 
     client.print("\r\n");
     delay(1);

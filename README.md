@@ -1,4 +1,4 @@
-# Waveshare server
+# Waveshare ESP32 e-ink driver code
 
 I recently bought a [Waveshare ESP32 e-ink driver
 board](https://www.waveshare.com/wiki/E-Paper_ESP32_Driver_Board). Its usability is

@@ -61,7 +61,7 @@ def convert_image(
 
 
 def send(ip: str, image_file: str):
-    pixel_pairs = convert_image(image_file, 640, 384, dither=True, show=True)
+    pixel_pairs = convert_image(image_file, 640, 384, dither=True, show=False)
     chunks = []
     chunk = []
     encodict = {
@@ -88,7 +88,6 @@ def send(ip: str, image_file: str):
     requests.post(f"http://{ip}/EPDu_")
     for counter, chunk in enumerate(chunks):
         print(f"Sending chunk {counter}...")
-        print(chunk)
         requests.post(f"http://{ip}/{chunk}iodaLOAD_")
     requests.post(f"http://{ip}/SHOW_")
     print("Done.")

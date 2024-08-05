@@ -31,6 +31,7 @@ def convert_image(
     fit: bool = False,
     show: bool = False,
     rotate: int = 0,
+    dither: bool = False,
 ) -> list[tuple[Color, Color]]:
     im = Image.open(infile).convert("RGB")
 
@@ -43,11 +44,16 @@ def convert_image(
     palimg = Image.new("P", (16, 16))
     palimg.putpalette(palette)
 
-    im_dithered = im.quantize(
-        colors=3, method=2, palette=palimg, dither=Image.FLOYDSTEINBERG
-    )
+    if dither:
+        im_quantized = im.quantize(
+            colors=3, method=2, palette=palimg, dither=Image.FLOYDSTEINBERG
+        )
+    else:
+        im_quantized = im.quantize(
+            colors=3, method=2, palette=palimg, dither=Image.NONE
+        )
 
-    im = im_dithered.convert("RGB")
+    im = im_quantized.convert("RGB")
 
     if show:
         im.show()
@@ -75,9 +81,16 @@ def download_image(url: str) -> str:
 
 
 def send(
-    ip: str, image_file: str, fit: bool = False, rotate: int = 0, show: bool = False
+    ip: str,
+    image_file: str,
+    fit: bool = False,
+    rotate: int = 0,
+    show: bool = False,
+    dither: bool = False,
 ):
-    pixel_pairs = convert_image(image_file, 640, 384, fit=fit, show=show, rotate=rotate)
+    pixel_pairs = convert_image(
+        image_file, 640, 384, fit=fit, show=show, rotate=rotate, dither=dither
+    )
     chunks = []
     chunk = []
     encodict = {
@@ -128,6 +141,9 @@ def parse_arguments():
     parser.add_argument(
         "-s", "--show", action="store_true", help="Show the image before sending"
     )
+    parser.add_argument(
+        "-d", "--dither", action="store_true", help="Apply dithering to the image"
+    )
     return parser.parse_args()
 
 
@@ -140,4 +156,11 @@ if __name__ == "__main__":
         image = download_image(image)
         print(f"Image downloaded to {image}")
 
-    send(args.ip, image, fit=args.fit, rotate=args.rotate, show=args.show)
+    send(
+        args.ip,
+        image,
+        fit=args.fit,
+        rotate=args.rotate,
+        show=args.show,
+        dither=args.dither,
+    )

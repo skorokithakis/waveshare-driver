@@ -30,8 +30,12 @@ def convert_image(
     max_height: int,
     fit: bool = False,
     show: bool = False,
+    rotate: int = 0,
 ) -> list[tuple[Color, Color]]:
     im = Image.open(infile).convert("RGB")
+
+    if rotate:
+        im = im.rotate(rotate, expand=True)
 
     im = resize_image(im, max_width, max_height, fit)
 
@@ -70,8 +74,10 @@ def download_image(url: str) -> str:
         return temp_file.name
 
 
-def send(ip: str, image_file: str, fit: bool = False):
-    pixel_pairs = convert_image(image_file, 640, 384, fit=fit, show=False)
+def send(
+    ip: str, image_file: str, fit: bool = False, rotate: int = 0, show: bool = False
+):
+    pixel_pairs = convert_image(image_file, 640, 384, fit=fit, show=show, rotate=rotate)
     chunks = []
     chunk = []
     encodict = {
@@ -109,7 +115,19 @@ def parse_arguments():
     )
     parser.add_argument("ip", help="The IP address to send the image to")
     parser.add_argument("image", help="The path to the image file, or a URL")
-    parser.add_argument("--fit", action="store_true", help="Fit the image to the display size")
+    parser.add_argument(
+        "--fit", action="store_true", help="Fit the image to the display size"
+    )
+    parser.add_argument(
+        "-r",
+        "--rotate",
+        type=int,
+        choices=[90, 180, 270],
+        help="Rotate the image by 90, 180, or 270 degrees",
+    )
+    parser.add_argument(
+        "-s", "--show", action="store_true", help="Show the image before sending"
+    )
     return parser.parse_args()
 
 
@@ -122,4 +140,4 @@ if __name__ == "__main__":
         image = download_image(image)
         print(f"Image downloaded to {image}")
 
-    send(args.ip, image, args.fit)
+    send(args.ip, image, fit=args.fit, rotate=args.rotate, show=args.show)

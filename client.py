@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-import sys
+import argparse
+import re
+import tempfile
 from typing import Literal
 
 import requests
@@ -27,7 +29,6 @@ def convert_image(
     max_width: int,
     max_height: int,
     fit: bool = False,
-    dither: bool = False,
     show: bool = False,
 ) -> list[tuple[Color, Color]]:
     im = Image.open(infile).convert("RGB")
@@ -60,8 +61,17 @@ def convert_image(
     return pixel_pairs
 
 
-def send(ip: str, image_file: str):
-    pixel_pairs = convert_image(image_file, 640, 384, dither=True, show=False)
+def download_image(url: str) -> str:
+    response = requests.get(url)
+    response.raise_for_status()
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as temp_file:
+        temp_file.write(response.content)
+        return temp_file.name
+
+
+def send(ip: str, image_file: str, fit: bool = False):
+    pixel_pairs = convert_image(image_file, 640, 384, fit=fit, show=False)
     chunks = []
     chunk = []
     encodict = {
@@ -93,4 +103,23 @@ def send(ip: str, image_file: str):
     print("Done.")
 
 
-send(sys.argv[1], sys.argv[2])
+def parse_arguments():
+    parser = argparse.ArgumentParser(
+        description="Send an image to a specified IP address."
+    )
+    parser.add_argument("ip", help="The IP address to send the image to")
+    parser.add_argument("image", help="The path to the image file, or a URL")
+    parser.add_argument("--fit", action="store_true", help="Fit the image to the display size")
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    args = parse_arguments()
+
+    image = args.image
+    if re.match(r"https?://", args.image):
+        print(f"Downloading image from {image}")
+        image = download_image(image)
+        print(f"Image downloaded to {image}")
+
+    send(args.ip, image, args.fit)

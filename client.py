@@ -117,7 +117,11 @@ def send(
     requests.post(f"http://{ip}/EPDu_")
     for counter, chunk in enumerate(chunks):
         print(f"Sending chunk {counter}...")
-        requests.post(f"http://{ip}/{chunk}iodaLOAD_")
+        if counter == len(chunks) - 1:
+            # No idea why this is needed at the end.
+            requests.post(f"http://{ip}/{chunk}ahdaLOAD_")
+        else:
+            requests.post(f"http://{ip}/{chunk}iodaLOAD_")
     requests.post(f"http://{ip}/SHOW_")
     print("Done.")
 

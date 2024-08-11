@@ -3,9 +3,12 @@ import argparse
 import re
 import tempfile
 from typing import Literal
+from typing import Optional
 
+import pyperclip
 import requests
 from PIL import Image
+from PIL import ImageEnhance
 from PIL import ImageOps
 
 BLACK = (0, 0, 0)
@@ -28,6 +31,7 @@ def convert_image(
     infile: str,
     max_width: int,
     max_height: int,
+    brightness: Optional[float] = None,
     fit: bool = False,
     show: bool = False,
     rotate: int = 0,
@@ -39,6 +43,10 @@ def convert_image(
         im = im.rotate(rotate, expand=True)
 
     im = resize_image(im, max_width, max_height, fit)
+
+    if brightness:
+        im = ImageEnhance.Contrast(im).enhance(1 / brightness)
+        im = ImageEnhance.Brightness(im).enhance(brightness)
 
     palette = [0, 0, 0, 255, 255, 255, 255, 0, 0]
     palimg = Image.new("P", (16, 16))
@@ -83,13 +91,21 @@ def download_image(url: str) -> str:
 def send(
     ip: str,
     image_file: str,
+    brightness: Optional[float] = None,
     fit: bool = False,
     rotate: int = 0,
     show: bool = False,
     dither: bool = False,
 ):
     pixel_pairs = convert_image(
-        image_file, 640, 384, fit=fit, show=show, rotate=rotate, dither=dither
+        image_file,
+        640,
+        384,
+        brightness=brightness,
+        fit=fit,
+        show=show,
+        rotate=rotate,
+        dither=dither,
     )
     chunks = []
     chunk = []
@@ -133,6 +149,14 @@ def parse_arguments():
     parser.add_argument("ip", help="The IP address to send the image to")
     parser.add_argument("image", help="The path to the image file, or a URL")
     parser.add_argument(
+        "-b",
+        "--brighten",
+        help="increase brightness by the given factor",
+        action="store",
+        dest="brightness",
+        type=float,
+    )
+    parser.add_argument(
         "--fit", action="store_true", help="Fit the image to the display size"
     )
     parser.add_argument(
@@ -153,9 +177,12 @@ def parse_arguments():
 
 if __name__ == "__main__":
     args = parse_arguments()
+    if args.image == "clipboard":
+        image = pyperclip.paste()
+    else:
+        image = args.image
 
-    image = args.image
-    if re.match(r"https?://", args.image):
+    if re.match(r"https?://", image):
         print(f"Downloading image from {image}")
         image = download_image(image)
         print(f"Image downloaded to {image}")
@@ -163,6 +190,7 @@ if __name__ == "__main__":
     send(
         args.ip,
         image,
+        brightness=args.brightness,
         fit=args.fit,
         rotate=args.rotate,
         show=args.show,
